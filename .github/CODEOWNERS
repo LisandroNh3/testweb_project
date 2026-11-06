@@ -1,0 +1,16 @@
+# Reemplazar cada usuario por el usuario de GitHub real del integrante responsable.
+*                                       @tech-lead
+/backend/src/modules/auth/              @lider-backend
+/backend/src/modules/usuarios/          @lider-backend
+/backend/src/modules/ventas/            @lider-backend
+/backend/src/modules/productos/         @backend-inventario
+/backend/src/modules/inventario/        @backend-inventario
+/backend/src/modules/compras/           @backend-inventario
+/backend/src/modules/proveedores/       @backend-inventario
+/backend/src/modules/cuentas-por-pagar/ @backend-inventario
+/backend/src/modules/caja/              @backend-caja-nomina
+/backend/src/modules/nomina/            @backend-caja-nomina
+/backend/prisma/                        @dba
+/frontend/                              @lider-frontend
+/frontend/src/pages/                    @frontend-dev @lider-frontend
+/docs/                                  @qa-docs
