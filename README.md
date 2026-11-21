@@ -1,7 +1,9 @@
-# Orígenes SV — ERP y POS para Restaurante
+# ☕ Coffee Click — ERP y POS para cafetería
 
-Sistema web ERP + Punto de Venta para **Restaurante Orígenes SV** (Caso de negocio 1).
-Proyecto de la asignatura Programación Web — 2026.
+Sistema web ERP + Punto de Venta para **Coffee Click**, una cafetería salvadoreña clásica: café de palo, capuchinos, horchata de morro, quesadilla, semita, salpores, desayuno típico y pan con pollo.
+Basado en el Caso de negocio 1 (ERP y POS para restaurante) de la asignatura Programación Web — 2026.
+
+**Identidad visual:** rojo cereza de café (color principal), café espresso oscuro (menú lateral), crema de leche (fondos) y dorado de pan dulce (detalles). Títulos en *Fraunces* y texto en *Inter*. La paleta está definida en `frontend/tailwind.config.js` y el logo en `frontend/src/components/common/Logo.jsx`.
 
 | Capa | Tecnología |
 |------|------------|
@@ -64,8 +66,16 @@ Proyecto de la asignatura Programación Web — 2026.
 - Generación de boleta de pago por empleado y reporte consolidado de planilla.
 
 ### 1.6 Transversales
-- Autenticación con JWT y control de acceso por rol (Administrador, Cajero, Mesero, Cocina, Bodega, RR. HH.).
-- Dashboard con indicadores de ventas, stock bajo y cuentas por pagar vencidas.
+- Autenticación con JWT y control de acceso por rol. El Administrador accede a todo; los demás roles solo a su área:
+
+  | Rol | Acceso |
+  |-----|--------|
+  | `ADMIN` | Todo el sistema, anulación de ventas, usuarios y parámetros de ley |
+  | `CAJERO` | Punto de venta, historial de ventas y caja |
+  | `BODEGA` | Productos y recetas, inventario, kardex, proveedores, compras y cuentas por pagar |
+  | `RRHH` | Empleados, planillas, boletas de pago y consulta de parámetros de ley |
+
+- Dashboard con indicadores de ventas del día, productos más vendidos, stock bajo y cuentas por pagar vencidas.
 
 > Fuera de alcance: facturación electrónica (DTE) ante el Ministerio de Hacienda e integración real con la API de Chivo Wallet; el pago con Bitcoin se registra como método de pago con su referencia de transacción.
 
@@ -76,7 +86,7 @@ Proyecto de la asignatura Programación Web — 2026.
 Monorepo con *npm workspaces*: un solo `git clone` y un solo `npm install`.
 
 ```text
-origenes-sv-erp/
+coffee-click-erp/
 ├── .github/
 │   ├── workflows/
 │   │   └── ci.yml                    # Lint + build en cada Pull Request
@@ -125,6 +135,7 @@ origenes-sv-erp/
 │   │   │   ├── proveedores/
 │   │   │   ├── cuentas-por-pagar/
 │   │   │   ├── caja/
+│   │   │   ├── dashboard/
 │   │   │   └── nomina/
 │   │   │       ├── nomina.routes.js
 │   │   │       ├── nomina.controller.js
@@ -135,7 +146,10 @@ origenes-sv-erp/
 │   │   │   ├── AppError.js           # Error de dominio con código HTTP
 │   │   │   ├── asyncHandler.js       # Envoltura try/catch para controladores async
 │   │   │   ├── money.js              # Redondeo monetario a 2 decimales
-│   │   │   └── constants.js          # IVA, tipos de documento, métodos de pago
+│   │   │   ├── fiscal.js             # Desglose y cálculo del IVA 13 %
+│   │   │   ├── validators.js         # Reglas de validación reutilizables
+│   │   │   ├── parametros.js         # Lectura de parámetros de ley desde la BD
+│   │   │   └── constants.js          # Roles, tipos de documento, métodos de pago
 │   │   ├── routes/
 │   │   │   └── index.js              # Monta /api/v1/<modulo>
 │   │   ├── app.js                    # Configuración de Express
@@ -161,8 +175,8 @@ origenes-sv-erp/
 │   │   │   └── nomina.api.js
 │   │   ├── assets/
 │   │   ├── components/
-│   │   │   ├── ui/                   # Button, Input, Modal, Table, Badge, Spinner
-│   │   │   └── common/               # Navbar, Sidebar, ProtectedRoute, StockAlert
+│   │   │   ├── ui/                   # Button, Input, Modal, Table, Badge, Card, Alert, Spinner
+│   │   │   └── common/               # Navbar, Sidebar, ProtectedRoute, StockAlert, PageHeader
 │   │   ├── context/
 │   │   │   └── AuthContext.jsx
 │   │   ├── hooks/
@@ -179,7 +193,8 @@ origenes-sv-erp/
 │   │   │   ├── inventario/           # Materia prima, recetas, reventa, kardex
 │   │   │   ├── compras/              # Proveedores, facturas, cuentas por pagar
 │   │   │   ├── caja/                 # Apertura, cobros, cierre y cuadre
-│   │   │   ├── nomina/               # Empleados, planillas, boletas
+│   │   │   ├── nomina/               # Empleados, planillas, boletas, parámetros de ley
+│   │   │   ├── usuarios/             # Administración de usuarios
 │   │   │   └── NotFound.jsx
 │   │   ├── routes/
 │   │   │   └── AppRouter.jsx         # React Router con rutas protegidas por rol
@@ -228,7 +243,7 @@ origenes-sv-erp/
 |-------------|---------|----------|
 | Git for Windows | 2.40+ | https://git-scm.com/download/win |
 | Node.js LTS (incluye npm) | 20.x | https://nodejs.org |
-| PostgreSQL (incluye pgAdmin y `psql`) | 16.x | https://www.postgresql.org/download/windows/ |
+| PostgreSQL (incluye pgAdmin y `psql`) | 16 o superior | https://www.postgresql.org/download/windows/ |
 | Visual Studio Code (recomendado) | Última | https://code.visualstudio.com |
 
 Extensiones recomendadas de VS Code: ESLint, Prettier, Prisma, Tailwind CSS IntelliSense.
@@ -242,7 +257,9 @@ npm -v
 psql --version
 ```
 
-Si `psql` no se reconoce, agregar `C:\Program Files\PostgreSQL\16\bin` a la variable de entorno `Path` del sistema y abrir una nueva ventana de PowerShell.
+Si `psql` no se reconoce, agregar `C:\Program Files\PostgreSQL\<versión>\bin` (por ejemplo `...\PostgreSQL\16\bin`) a la variable de entorno `Path` del sistema y abrir una nueva ventana de PowerShell.
+
+> Al escribir la contraseña en `psql` la terminal no muestra ningún carácter; escríbala completa y presione Enter.
 
 Si PowerShell bloquea `npm` o `npx` con un error de *execution policy*, ejecutar una vez:
 
@@ -259,8 +276,8 @@ Todos los comandos se ejecutan en **PowerShell**.
 ### 4.1 Clonar el repositorio
 
 ```powershell
-git clone https://github.com/<organizacion>/origenes-sv-erp.git
-cd origenes-sv-erp
+git clone https://github.com/<organizacion>/coffee-click-erp.git
+cd coffee-click-erp
 ```
 
 ### 4.2 Instalar dependencias (frontend y backend)
@@ -295,6 +312,8 @@ npm run db:migrate
 npm run db:seed
 ```
 
+`db:migrate` crea las tablas a partir de `backend/prisma/migrations`. `db:seed` carga usuarios de demostración, parámetros de ley (IVA, ISSS, AFP, tabla de Renta), correlativos, el menú de la cafetería (cafés, bebidas frías, desayunos, pan dulce y embotellados) con sus recetas, inventario inicial, proveedores y empleados. Se puede ejecutar varias veces sin duplicar datos.
+
 ### 4.6 Levantar el proyecto
 
 ```powershell
@@ -307,7 +326,26 @@ npm run dev
 | API | http://localhost:3000/api/v1 |
 | Health check | http://localhost:3000/api/v1/health |
 
-Las credenciales del usuario administrador inicial se definen en `backend\prisma\seed.js` y deben cambiarse tras el primer inicio de sesión.
+### 4.7 Usuarios de demostración
+
+Todos usan la contraseña `CoffeeClick2026!` (definida en `backend/prisma/seed.js`). Son solo para desarrollo local.
+
+| Correo | Rol |
+|--------|-----|
+| `admin@coffeeclick.sv` | Administrador |
+| `cajero@coffeeclick.sv` | Cajero |
+| `bodega@coffeeclick.sv` | Bodega y compras |
+| `rrhh@coffeeclick.sv` | Recursos humanos |
+
+### 4.8 Flujo de prueba sugerido
+
+1. Entrar como **cajero** → *Caja* → abrir turno con fondo inicial.
+2. *Punto de venta* → agregar cafés, pan dulce o un desayuno → *Cobrar* (efectivo, tarjeta, Bitcoin o pago dividido) → ver el comprobante con su correlativo e IVA.
+3. Entrar como **bodega** → *Materia prima* / *Kardex* para ver el descuento automático por receta; *Facturas de compra* → registrar una compra al crédito → *Cuentas por pagar* → abonar.
+4. Entrar como **cajero** → *Cierre y cuadre* → ingresar lo contado y cerrar el turno.
+5. Entrar como **rrhh** → *Planillas* → generar la quincena → revisar ISSS, AFP y Renta → aprobar → *Boletas de pago*.
+
+Para borrar todos los datos y volver al estado inicial: `npm run db:reset` (pide confirmación y vuelve a cargar el seed).
 
 ---
 
@@ -346,7 +384,7 @@ Ejecutar desde la raíz:
 | `npm run build` | Build de producción del frontend |
 | `npm run lint` | ESLint en ambos workspaces |
 | `npm run format` | Prettier en todo el proyecto |
-| `npm run test` | Pruebas del backend |
+| `npm run test` | Pruebas unitarias y de integración del backend (`node --test`) |
 | `npm run db:migrate` | `prisma migrate dev` |
 | `npm run db:seed` | `prisma db seed` |
 | `npm run db:studio` | Abre Prisma Studio para inspeccionar datos |
@@ -376,7 +414,15 @@ Ejecutar desde la raíz:
 ### 7.4 Reglas de negocio críticas
 - Montos con `Decimal` en Prisma; nunca `Float` para dinero.
 - Porcentajes (IVA, ISSS, AFP), topes y tablas de Renta en tablas de configuración, editables sin modificar código.
-- Los correlativos de documentos no se reutilizan; una anulación conserva su número con estado `ANULADO`.
+- Los correlativos de documentos no se reutilizan; una anulación conserva su número con estado `ANULADA` y devuelve al inventario lo descontado.
+- **IVA:** los precios del menú incluyen IVA. La factura de consumidor final muestra precios con IVA; el CCF muestra ventas gravadas sin IVA y el 13 % por separado, y exige NIT, NRC y giro del cliente.
+- **Correlativos:** se reservan con `UPDATE ... SET actual = actual + 1` dentro de la misma transacción de la venta, así dos cajas nunca obtienen el mismo número y una venta fallida no consume número.
+- **Inventario:** el descuento usa un `UPDATE` condicionado a `stock >= cantidad`; si no alcanza, la venta completa se revierte con un mensaje que indica el insumo faltante.
+- **Compras:** actualizan el costo promedio ponderado de cada artículo. Las compras al crédito generan la cuenta por pagar con vencimiento según los días de crédito del proveedor.
+- **Caja:** solo se vende con un turno abierto. El cierre compara lo esperado por método de pago (efectivo = fondo inicial + cobros en efectivo) contra lo contado.
+- **Nómina:** ISSS y AFP se calculan hasta su techo de cotización; la Renta se aplica sobre devengado − ISSS − AFP con la tabla quincenal. Una planilla aprobada ya no se modifica.
+
+La lista completa de endpoints está en [docs/documentacion-tecnica/endpoints.md](docs/documentacion-tecnica/endpoints.md).
 
 ### 7.5 Estilo de código
 - ESLint + Prettier obligatorios; el CI rechaza PR con errores de lint.
@@ -487,7 +533,7 @@ El equipo declara el uso de las siguientes herramientas de IA. Todo contenido as
 
 | Herramienta | Proveedor | Uso | Archivos / secciones | Integrante responsable |
 |-------------|-----------|-----|----------------------|------------------------|
-| Claude (Claude Code) | Anthropic | Propuesta de arquitectura de carpetas y redacción inicial de este README | `README.md`, estructura del repositorio | _Nombre_ |
+| Claude Opus 5.5 (Claude Code) | Anthropic | Arquitectura de carpetas, README, modelo de datos Prisma, implementación inicial del backend (todos los módulos, validaciones, pruebas) y del frontend (todas las páginas, hooks y componentes) | `backend/`, `frontend/`, `README.md`, `docs/documentacion-tecnica/endpoints.md` | _Nombre_ |
 | _Herramienta_ | _Proveedor_ | _Descripción del uso_ | _Ruta del archivo_ | _Nombre_ |
 
 Cada nuevo uso de IA en el código debe registrarse en esta tabla dentro del mismo Pull Request que introduce el cambio.
