@@ -6,3 +6,415 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ─────────────────────────────── Enums ───────────────────────────────
+
+enum Rol {
+  ADMIN
+  CAJERO
+  BODEGA
+  RRHH
+}
+
+enum TipoProducto {
+  ELABORADO
+  REVENTA
+}
+
+enum TipoArticulo {
+  MATERIA_PRIMA
+  REVENTA
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
+  AJUSTE
+  MERMA
+}
+
+enum TipoDocumento {
+  FACTURA
+  CCF
+}
+
+enum TipoServicio {
+  MESA
+  LLEVAR
+  DOMICILIO
+}
+
+enum EstadoVenta {
+  PAGADA
+  ANULADA
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TARJETA
+  BITCOIN
+}
+
+enum EstadoTurno {
+  ABIERTO
+  CERRADO
+}
+
+enum CondicionCompra {
+  CONTADO
+  CREDITO
+}
+
+enum EstadoCompra {
+  PENDIENTE
+  PARCIAL
+  PAGADA
+}
+
+enum EstadoPlanilla {
+  BORRADOR
+  APROBADA
+}
+
+// ─────────────────────────────── Seguridad ───────────────────────────────
+
+model Usuario {
+  id          Int                    @id @default(autoincrement())
+  nombre      String
+  email       String                 @unique
+  password    String
+  rol         Rol
+  activo      Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  ventas      Venta[]
+  turnos      TurnoCaja[]
+  compras     Compra[]
+  abonos      AbonoCompra[]
+  movimientos MovimientoInventario[]
+
+  @@map("usuarios")
+}
+
+// ─────────────────────────────── Catálogo e inventario ───────────────────────────────
+
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  productos Producto[]
+
+  @@map("categorias")
+}
+
+model Producto {
+  id            Int                 @id @default(autoincrement())
+  nombre        String              @unique
+  descripcion   String?
+  precio        Decimal             @db.Decimal(10, 2)
+  tipo          TipoProducto
+  categoriaId   Int
+  categoria     Categoria           @relation(fields: [categoriaId], references: [id])
+  articuloId    Int?
+  articulo      ArticuloInventario? @relation("ProductoReventa", fields: [articuloId], references: [id])
+  activo        Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  receta        RecetaDetalle[]
+  detallesVenta VentaDetalle[]
+
+  @@map("productos")
+}
+
+model ArticuloInventario {
+  id              Int                    @id @default(autoincrement())
+  nombre          String                 @unique
+  tipo            TipoArticulo
+  unidad          String
+  stock           Decimal                @default(0) @db.Decimal(12, 3)
+  stockMinimo     Decimal                @default(0) @db.Decimal(12, 3)
+  costoUnitario   Decimal                @default(0) @db.Decimal(12, 4)
+  activo          Boolean                @default(true)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  recetas         RecetaDetalle[]
+  productos       Producto[]             @relation("ProductoReventa")
+  movimientos     MovimientoInventario[]
+  detallesCompra  CompraDetalle[]
+
+  @@map("articulos_inventario")
+}
+
+model RecetaDetalle {
+  id         Int                @id @default(autoincrement())
+  productoId Int
+  producto   Producto           @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  articuloId Int
+  articulo   ArticuloInventario @relation(fields: [articuloId], references: [id])
+  cantidad   Decimal            @db.Decimal(12, 3)
+
+  @@unique([productoId, articuloId])
+  @@map("recetas_detalle")
+}
+
+model MovimientoInventario {
+  id            Int                @id @default(autoincrement())
+  articuloId    Int
+  articulo      ArticuloInventario @relation(fields: [articuloId], references: [id])
+  tipo          TipoMovimiento
+  cantidad      Decimal            @db.Decimal(12, 3)
+  stockAnterior Decimal            @db.Decimal(12, 3)
+  stockNuevo    Decimal            @db.Decimal(12, 3)
+  referencia    String?
+  ventaId       Int?
+  compraId      Int?
+  usuarioId     Int?
+  usuario       Usuario?           @relation(fields: [usuarioId], references: [id])
+  createdAt     DateTime           @default(now())
+
+  @@index([articuloId, createdAt])
+  @@index([ventaId])
+  @@map("movimientos_inventario")
+}
+
+// ─────────────────────────────── Ventas y caja ───────────────────────────────
+
+model Correlativo {
+  id            Int           @id @default(autoincrement())
+  tipoDocumento TipoDocumento
+  serie         String
+  actual        Int           @default(0)
+
+  @@unique([tipoDocumento, serie])
+  @@map("correlativos")
+}
+
+model Venta {
+  id               Int            @id @default(autoincrement())
+  tipoDocumento    TipoDocumento
+  serie            String
+  numero           Int
+  tipoServicio     TipoServicio
+  mesa             String?
+  clienteNombre    String?
+  clienteNit       String?
+  clienteNrc       String?
+  clienteGiro      String?
+  clienteDireccion String?
+  subtotal         Decimal        @db.Decimal(10, 2)
+  iva              Decimal        @db.Decimal(10, 2)
+  total            Decimal        @db.Decimal(10, 2)
+  estado           EstadoVenta    @default(PAGADA)
+  motivoAnulacion  String?
+  usuarioId        Int
+  usuario          Usuario        @relation(fields: [usuarioId], references: [id])
+  turnoId          Int
+  turno            TurnoCaja      @relation(fields: [turnoId], references: [id])
+  createdAt        DateTime       @default(now())
+  detalles         VentaDetalle[]
+  pagos            Pago[]
+
+  @@unique([tipoDocumento, serie, numero])
+  @@index([createdAt])
+  @@map("ventas")
+}
+
+model VentaDetalle {
+  id             Int      @id @default(autoincrement())
+  ventaId        Int
+  venta          Venta    @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  productoId     Int
+  producto       Producto @relation(fields: [productoId], references: [id])
+  descripcion    String
+  cantidad       Int
+  precioUnitario Decimal  @db.Decimal(10, 2)
+  subtotal       Decimal  @db.Decimal(10, 2)
+
+  @@map("ventas_detalle")
+}
+
+model Pago {
+  id         Int        @id @default(autoincrement())
+  ventaId    Int
+  venta      Venta      @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  metodo     MetodoPago
+  monto      Decimal    @db.Decimal(10, 2)
+  referencia String?
+
+  @@map("pagos")
+}
+
+model TurnoCaja {
+  id               Int         @id @default(autoincrement())
+  usuarioId        Int
+  usuario          Usuario     @relation(fields: [usuarioId], references: [id])
+  estado           EstadoTurno @default(ABIERTO)
+  fondoInicial     Decimal     @db.Decimal(10, 2)
+  abiertoEn        DateTime    @default(now())
+  cerradoEn        DateTime?
+  esperadoEfectivo Decimal?    @db.Decimal(10, 2)
+  esperadoTarjeta  Decimal?    @db.Decimal(10, 2)
+  esperadoBitcoin  Decimal?    @db.Decimal(10, 2)
+  contadoEfectivo  Decimal?    @db.Decimal(10, 2)
+  contadoTarjeta   Decimal?    @db.Decimal(10, 2)
+  contadoBitcoin   Decimal?    @db.Decimal(10, 2)
+  diferencia       Decimal?    @db.Decimal(10, 2)
+  observaciones    String?
+  ventas           Venta[]
+
+  @@index([usuarioId, estado])
+  @@map("turnos_caja")
+}
+
+// ─────────────────────────────── Compras ───────────────────────────────
+
+model Proveedor {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  nit         String?  @unique
+  nrc         String?
+  telefono    String?
+  email       String?
+  direccion   String?
+  diasCredito Int      @default(0)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  compras     Compra[]
+
+  @@map("proveedores")
+}
+
+model Compra {
+  id               Int             @id @default(autoincrement())
+  proveedorId      Int
+  proveedor        Proveedor       @relation(fields: [proveedorId], references: [id])
+  tipoDocumento    TipoDocumento
+  numeroDocumento  String
+  fechaEmision     DateTime        @db.Date
+  fechaVencimiento DateTime?       @db.Date
+  condicion        CondicionCompra
+  subtotal         Decimal         @db.Decimal(10, 2)
+  iva              Decimal         @db.Decimal(10, 2)
+  total            Decimal         @db.Decimal(10, 2)
+  saldo            Decimal         @db.Decimal(10, 2)
+  estado           EstadoCompra
+  usuarioId        Int
+  usuario          Usuario         @relation(fields: [usuarioId], references: [id])
+  createdAt        DateTime        @default(now())
+  detalles         CompraDetalle[]
+  abonos           AbonoCompra[]
+
+  @@unique([proveedorId, tipoDocumento, numeroDocumento])
+  @@map("compras")
+}
+
+model CompraDetalle {
+  id            Int                @id @default(autoincrement())
+  compraId      Int
+  compra        Compra             @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  articuloId    Int
+  articulo      ArticuloInventario @relation(fields: [articuloId], references: [id])
+  cantidad      Decimal            @db.Decimal(12, 3)
+  costoUnitario Decimal            @db.Decimal(12, 4)
+  subtotal      Decimal            @db.Decimal(10, 2)
+
+  @@map("compras_detalle")
+}
+
+model AbonoCompra {
+  id         Int        @id @default(autoincrement())
+  compraId   Int
+  compra     Compra     @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  monto      Decimal    @db.Decimal(10, 2)
+  metodo     MetodoPago
+  referencia String?
+  usuarioId  Int?
+  usuario    Usuario?   @relation(fields: [usuarioId], references: [id])
+  fecha      DateTime   @default(now())
+
+  @@map("abonos_compra")
+}
+
+// ─────────────────────────────── Nómina ───────────────────────────────
+
+model Empleado {
+  id             Int               @id @default(autoincrement())
+  nombres        String
+  apellidos      String
+  dui            String            @unique
+  nit            String?
+  numeroIsss     String?
+  nup            String?
+  cargo          String
+  salarioMensual Decimal           @db.Decimal(10, 2)
+  fechaIngreso   DateTime          @db.Date
+  activo         Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  detalles       PlanillaDetalle[]
+
+  @@map("empleados")
+}
+
+model Planilla {
+  id             Int               @id @default(autoincrement())
+  anio           Int
+  mes            Int
+  quincena       Int
+  fechaInicio    DateTime          @db.Date
+  fechaFin       DateTime          @db.Date
+  estado         EstadoPlanilla    @default(BORRADOR)
+  totalDevengado Decimal           @db.Decimal(12, 2)
+  totalIsss      Decimal           @db.Decimal(12, 2)
+  totalAfp       Decimal           @db.Decimal(12, 2)
+  totalRenta     Decimal           @db.Decimal(12, 2)
+  totalLiquido   Decimal           @db.Decimal(12, 2)
+  createdAt      DateTime          @default(now())
+  aprobadaEn     DateTime?
+  detalles       PlanillaDetalle[]
+
+  @@unique([anio, mes, quincena])
+  @@map("planillas")
+}
+
+model PlanillaDetalle {
+  id               Int      @id @default(autoincrement())
+  planillaId       Int
+  planilla         Planilla @relation(fields: [planillaId], references: [id], onDelete: Cascade)
+  empleadoId       Int
+  empleado         Empleado @relation(fields: [empleadoId], references: [id])
+  salarioQuincenal Decimal  @db.Decimal(10, 2)
+  otrosIngresos    Decimal  @default(0) @db.Decimal(10, 2)
+  devengado        Decimal  @db.Decimal(10, 2)
+  isss             Decimal  @db.Decimal(10, 2)
+  afp              Decimal  @db.Decimal(10, 2)
+  renta            Decimal  @db.Decimal(10, 2)
+  otrosDescuentos  Decimal  @default(0) @db.Decimal(10, 2)
+  totalDescuentos  Decimal  @db.Decimal(10, 2)
+  liquido          Decimal  @db.Decimal(10, 2)
+
+  @@unique([planillaId, empleadoId])
+  @@map("planillas_detalle")
+}
+
+// ─────────────────────────────── Parámetros de ley ───────────────────────────────
+
+model ParametroLey {
+  clave       String  @id
+  valor       Decimal @db.Decimal(12, 4)
+  descripcion String
+
+  @@map("parametros_ley")
+}
+
+model TramoRenta {
+  id           Int      @id @default(autoincrement())
+  periodicidad String   @default("QUINCENAL")
+  tramo        Int
+  desde        Decimal  @db.Decimal(12, 2)
+  hasta        Decimal? @db.Decimal(12, 2)
+  porcentaje   Decimal  @db.Decimal(5, 4)
+  sobreExceso  Decimal  @db.Decimal(12, 2)
+  cuotaFija    Decimal  @db.Decimal(12, 2)
+
+  @@unique([periodicidad, tramo])
+  @@map("tramos_renta")
+}
