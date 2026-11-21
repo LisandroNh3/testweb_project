@@ -1,3 +1,46 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-crema-100 text-espresso-900 antialiased;
+  }
+  h1,
+  h2 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .input {
+    @apply block w-full rounded-lg border border-crema-300 bg-white px-3 py-2 text-sm shadow-sm
+      placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200
+      disabled:bg-crema-100 disabled:text-stone-500;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-espresso-700;
+  }
+  .card {
+    @apply rounded-2xl border border-crema-200 bg-crema-50 shadow-sm shadow-espresso-900/5;
+  }
+  /* Textura sutil de granos de café para fondos oscuros. */
+  .bg-granos {
+    background-image: radial-gradient(rgba(240, 207, 122, 0.05) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    @apply bg-white;
+  }
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+  }
+}
