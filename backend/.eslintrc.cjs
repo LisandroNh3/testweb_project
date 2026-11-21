@@ -4,6 +4,9 @@ module.exports = {
   parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
   extends: ['eslint:recommended'],
   rules: {
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_|^next$' }],
+    'no-unused-vars': [
+      'error',
+      { argsIgnorePattern: '^_|^next$', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+    ],
   },
 };

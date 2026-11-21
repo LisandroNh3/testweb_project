@@ -1,8 +1,8 @@
 {
-  "name": "origenes-sv-erp",
+  "name": "coffee-click-erp",
   "version": "0.1.0",
   "private": true,
-  "description": "ERP y POS para Restaurante Orígenes SV",
+  "description": "ERP y POS para la cafetería Coffee Click",
   "workspaces": [
     "backend",
     "frontend"
